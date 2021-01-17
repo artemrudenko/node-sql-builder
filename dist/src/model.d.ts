@@ -5,5 +5,10 @@ export interface IDBConfigInfo {
     query?: string;
     username?: string;
     password?: string;
-    ntlm: boolean;
+    ntlm?: boolean;
+    requestTimeout?: number;
+}
+export declare enum QueryType {
+    Query = 0,
+    Procedure = 1
 }

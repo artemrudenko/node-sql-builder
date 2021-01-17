@@ -30,66 +30,76 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DBRequest = void 0;
 const sql = __importStar(require("mssql/msnodesqlv8"));
+const model_1 = require("./model");
 class DBRequest {
     constructor(config) {
         this.config = config;
-        const connectionConfig = {
+        this._config = {
             server: this.config.server,
             driver: 'msnodesqlv8',
             database: this.config.database
         };
         if (!!this.config.port) {
-            connectionConfig.port = this.config.port;
+            this._config.port = this.config.port;
         }
         if (this.config.ntlm) {
-            connectionConfig.options = connectionConfig.options
-                ? Object.assign(Object.assign({}, connectionConfig.options), { trustedConnection: true }) : { trustedConnection: true };
+            this._config.options = this._config.options
+                ? Object.assign(Object.assign({}, this._config.options), { trustedConnection: true }) : { trustedConnection: true };
         }
         else {
-            connectionConfig.user = this.config.username;
-            connectionConfig.password = this.config.password;
+            this._config.user = this.config.username;
+            this._config.password = this.config.password;
         }
-        connectionConfig.requestTimeout = 60000;
-        this.pool = new sql.ConnectionPool(connectionConfig);
+        this._config.requestTimeout = this.config.requestTimeout;
+        this.pool = new sql.ConnectionPool(this._config);
     }
-    execute() {
+    get connectionConfig() {
+        return this._config;
+    }
+    execute(query) {
         return __awaiter(this, void 0, void 0, function* () {
-            if (this.config.query === undefined) {
+            query = !!query ? query : this.config.query;
+            if (query === undefined) {
                 throw new Error(`Can't execute query if it wasn't specified!`);
             }
-            if (!this.pool.connected) {
-                yield this.pool.connect();
-            }
-            try {
-                const result = yield this.pool.request().query(this.config.query);
-                return result.recordset;
-            }
-            finally {
-                yield this.pool.close();
-            }
+            return this.executeQuery(query, model_1.QueryType.Query);
         });
     }
-    executeProc() {
+    executeProc(query) {
         return __awaiter(this, void 0, void 0, function* () {
-            if (this.config.query === undefined) {
+            query = !!query ? query : this.config.query;
+            if (query === undefined) {
                 throw new Error(`Can't execute query if it wasn't specified!`);
             }
-            if (!this.pool.connected) {
-                yield this.pool.connect();
-            }
-            try {
-                const result = yield this.pool.request().execute(this.config.query);
-                return result;
-            }
-            finally {
-                yield this.pool.close();
-            }
+            return this.executeQuery(query, model_1.QueryType.Procedure);
         });
     }
     close() {
         return __awaiter(this, void 0, void 0, function* () {
             if (this.pool.connected) {
                 return this.pool.close();
+            }
+        });
+    }
+    executeQuery(query, queryType) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (!this.pool.connected) {
+                yield this.pool.connect();
+            }
+            try {
+                let result;
+                switch (queryType) {
+                    case model_1.QueryType.Procedure:
+                        result = yield this.pool.request().execute(query);
+                        break;
+                    case model_1.QueryType.Query:
+                    default:
+                        result = yield this.pool.request().query(query);
+                        return result;
+                }
+            }
+            finally {
+                yield this.pool.close();
             }
         });
     }

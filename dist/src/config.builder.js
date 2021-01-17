@@ -1,11 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DBRequestBuilder = void 0;
-class DBRequestBuilder {
+exports.DBConfigInfoBuilder = void 0;
+class DBConfigInfoBuilder {
     constructor() {
-        this.server = process.env.DBSERVERNAME || 'PERCIVAL';
-        this.database = process.env.DATABASE || 'Coeus_Dev';
+        this.server = process.env.DB_SERVER_NAME || '';
+        this.database = process.env.DB_DATABASE_NAME || '';
         this.ntlm = true;
+        this.requestTimeout = 60000;
     }
     withServer(value) {
         this.server = value;
@@ -19,12 +20,20 @@ class DBRequestBuilder {
         this.port = value;
         return this;
     }
+    withTimeout(value) {
+        this.requestTimeout = value;
+        return this;
+    }
     withQuery(value) {
         this.query = value;
         return this;
     }
     withNtlmAuth(value) {
         this.ntlm = value;
+        if (value === true) {
+            this.username = undefined;
+            this.password = undefined;
+        }
         return this;
     }
     withUsername(value) {
@@ -43,8 +52,9 @@ class DBRequestBuilder {
             query: this.query,
             username: this.username,
             password: this.password,
-            ntlm: this.ntlm
+            ntlm: this.ntlm,
+            requestTimeout: this.requestTimeout
         };
     }
 }
-exports.DBRequestBuilder = DBRequestBuilder;
+exports.DBConfigInfoBuilder = DBConfigInfoBuilder;

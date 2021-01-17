@@ -1,65 +1,77 @@
 import * as sql from 'mssql/msnodesqlv8';
 
-import { IDBConfigInfo } from "./model";
+import { IDBConfigInfo, QueryType } from "./model";
 
 export class DBRequest {
   pool: sql.ConnectionPool;
+  _config: sql.config | undefined;
+
+  get connectionConfig() {
+    return this._config
+  }
 
   constructor(private config: IDBConfigInfo) {
-    const connectionConfig: sql.config = {
+    this._config = {
       server: this.config.server,
       driver: 'msnodesqlv8',
       database: this.config.database
     }
     if (!!this.config.port) {
-      connectionConfig.port = this.config.port;
+      this._config.port = this.config.port;
     }
     if (this.config.ntlm) {
-      connectionConfig.options = connectionConfig.options
-        ? { ...connectionConfig.options, trustedConnection: true }
+      this._config.options = this._config.options
+        ? { ...this._config.options, trustedConnection: true }
         : { trustedConnection: true };
     } else {
-      connectionConfig.user = this.config.username;
-      connectionConfig.password = this.config.password;
+      this._config.user = this.config.username;
+      this._config.password = this.config.password;
     }
-    connectionConfig.requestTimeout = 60000;
+    this._config.requestTimeout = this.config.requestTimeout;
 
-    this.pool = new sql.ConnectionPool(connectionConfig);
+    this.pool = new sql.ConnectionPool(this._config);
   }
 
-  public async execute() {
-    if (this.config.query === undefined) {
+  public async execute(query?: string) {
+    query = !!query ? query : this.config.query;
+    if (query === undefined) {
       throw new Error(`Can't execute query if it wasn't specified!`);
     }
-    if (!this.pool.connected) {
-      await this.pool.connect();
-    }
-    try {
-      const result = await this.pool.request().query(this.config.query);
-      return result.recordset;
-    } finally {
-      await this.pool.close();
-    }
+    return this.executeQuery(query, QueryType.Query);
   }
 
-  public async executeProc() {
-    if (this.config.query === undefined) {
+  public async executeProc(query?: string) {
+    query = !!query ? query : this.config.query;
+    if (query === undefined) {
       throw new Error(`Can't execute query if it wasn't specified!`);
     }
-    if (!this.pool.connected) {
-      await this.pool.connect();
-    }
-    try {
-      const result = await this.pool.request().execute(this.config.query);
-      return result;
-    } finally {
-      await this.pool.close();
-    }
+    return this.executeQuery(query, QueryType.Procedure);
   }
 
   public async close() {
     if (this.pool.connected) {
       return this.pool.close();
+    }
+  }
+
+
+  private async executeQuery(query: string, queryType: QueryType) {
+    if (!this.pool.connected) {
+      await this.pool.connect();
+    }
+    try {
+      let result: any;
+      switch (queryType) {
+        case QueryType.Procedure:
+          result = await this.pool.request().execute(query);
+          break;
+        case QueryType.Query:
+        default:
+          result = await this.pool.request().query(query);
+          return result;
+      }
+    } finally {
+      await this.pool.close();
     }
   }
 }

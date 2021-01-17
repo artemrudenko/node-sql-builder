@@ -1,13 +1,14 @@
 import { IDBConfigInfo } from "./model";
 
-export class DBRequestBuilder {
-  public server: string = process.env.DBSERVERNAME || '';
-  public database: string = process.env.DATABASE || '';
+export class DBConfigInfoBuilder {
+  public server: string = process.env.DB_SERVER_NAME || '';
+  public database: string = process.env.DB_DATABASE_NAME || '';
   public port: number | undefined;
   public query: string | undefined;
   public username: string | undefined;
   public password: string | undefined;
   public ntlm: boolean = true;
+  public requestTimeout: number = 60000;
 
   public withServer(value: string) {
     this.server = value;
@@ -24,6 +25,11 @@ export class DBRequestBuilder {
     return this;
   }
 
+  public withTimeout(value: number) {
+    this.requestTimeout = value;
+    return this;
+  }
+
   public withQuery(value: string) {
     this.query = value;
     return this;
@@ -31,6 +37,10 @@ export class DBRequestBuilder {
 
   public withNtlmAuth(value: boolean) {
     this.ntlm = value;
+    if (value === true) {
+      this.username = undefined;
+      this.password = undefined;
+    }
     return this;
   }
 
@@ -52,7 +62,8 @@ export class DBRequestBuilder {
       query: this.query,
       username: this.username,
       password: this.password,
-      ntlm: this.ntlm
+      ntlm: this.ntlm,
+      requestTimeout: this.requestTimeout
     };
   }
 }
